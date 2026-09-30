@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Loan Approval Predictor</title>
+<style>
+:root {
+  --bg: #edf1f3; --card: #ffffff; --ink: #12262c; --muted: #5b6f77; --line: #d9e2e6;
+  --brand: #0e5a63; --deep: #0a2f35; --deep-2: #0f4249; --gold: #e3b04b;
+  --good: #1b8a5a; --bad: #b3423a;
+  --good-d: #56dba6; --mid-d: #f2bd55; --bad-d: #ff8478;
+  --serif: Georgia, "Times New Roman", serif;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.55 var(--sans); padding-bottom: 56px; }
+
+/* Hero band */
+.hero {
+  background:
+    radial-gradient(circle at 88% 130%, transparent 0 150px, rgba(227,176,75,.35) 151px 153px, transparent 154px 200px, rgba(255,255,255,.10) 201px 203px, transparent 204px),
+    linear-gradient(135deg, var(--deep) 0%, var(--brand) 100%);
+  color: #fff; padding: 52px 20px 108px;
+}
+.hero-inner { max-width: 1080px; margin: 0 auto; }
+h1 { font: 700 clamp(2rem, 4.5vw, 3rem)/1.1 var(--serif); margin: 0 0 12px; letter-spacing: -.01em; }
+.hero p { margin: 0; max-width: 52ch; font-size: 1.08rem; color: #cfe3e5; }
+
+/* Layout */
+.layout {
+  max-width: 1080px; margin: -68px auto 0; padding: 0 20px;
+  display: grid; grid-template-columns: 1.2fr 1fr; gap: 24px; align-items: start;
+}
+.card { background: var(--card); border-radius: 14px; box-shadow: 0 14px 34px -14px rgba(10,47,53,.35); }
+.form-card { padding: 26px 28px 30px; }
+.card-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 8px; }
+h2 { font: 700 1.3rem/1.2 var(--serif); margin: 0; }
+
+.presets { display: flex; align-items: center; gap: 6px; font-size: .85rem; color: var(--muted); }
+.presets button {
+  font: inherit; font-size: .85rem; cursor: pointer; color: var(--brand); background: #eaf3f4;
+  border: 1px solid transparent; border-radius: 6px; padding: 5px 12px; transition: background .15s, color .15s;
+}
+.presets button:hover { background: var(--brand); color: #fff; }
+
+/* Form */
+fieldset { border: 0; border-top: 1px solid var(--line); margin: 18px 0 0; padding: 14px 0 0; }
+legend { font-weight: 700; font-size: .95rem; color: var(--brand); padding: 0 10px 0 0; float: left; width: 100%; margin-bottom: 12px; }
+.grid { clear: both; display: grid; grid-template-columns: 1fr 1fr; gap: 14px 18px; }
+label { display: flex; flex-direction: column; gap: 5px; font-size: .88rem; font-weight: 600; color: var(--muted); }
+label.wide { grid-column: 1 / -1; }
+.row { display: flex; justify-content: space-between; align-items: baseline; }
+output { font: 700 1.5rem/1 var(--serif); color: var(--brand); }
+.scale { display: flex; justify-content: space-between; font-size: .75rem; font-weight: 400; }
+input, select {
+  font: 500 1rem var(--sans); color: var(--ink); background: #f6f9fa; width: 100%;
+  border: 1.5px solid var(--line); border-radius: 8px; padding: 10px 12px;
+  transition: border-color .15s, background .15s;
+}
+input:hover, select:hover { border-color: #b7c7cd; }
+input:focus, select:focus { outline: none; border-color: var(--brand); background: #fff; box-shadow: 0 0 0 3px rgba(14,90,99,.18); }
+
+input[type=range] { -webkit-appearance: none; appearance: none; height: 8px; padding: 0; border: 0; border-radius: 4px;
+  background: linear-gradient(90deg, #d9695f, var(--gold) 50%, #3fae82); margin: 6px 0 2px; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 24px; height: 24px; border-radius: 50%;
+  background: #fff; border: 4px solid var(--brand); cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,.25); }
+input[type=range]::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: #fff; border: 4px solid var(--brand); cursor: pointer; }
+input[type=range]:focus { box-shadow: none; background: linear-gradient(90deg, #d9695f, var(--gold) 50%, #3fae82); }
+input[type=range]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 4px rgba(14,90,99,.3); }
+.error { color: var(--bad); background: #fbeceb; border-radius: 8px; padding: 10px 14px; margin: 18px 0 0; font-size: .9rem; }
+
+/* Result card */
+.result { position: sticky; top: 16px; padding: 26px 28px 30px; background: linear-gradient(170deg, var(--deep-2), var(--deep)); color: #fff; }
+.result h2 { color: #fff; }
+.gauge { position: relative; max-width: 340px; margin: 14px auto 0; }
+.gauge svg { width: 100%; display: block; overflow: visible; }
+.track, .arc { fill: none; stroke-width: 15; stroke-linecap: round; }
+.track { stroke: rgba(255,255,255,.14); }
+.arc { stroke: var(--gold); transition: stroke-dashoffset .6s cubic-bezier(.2,.8,.2,1), stroke .3s; }
+.arc.good { stroke: var(--good-d); } .arc.mid { stroke: var(--mid-d); } .arc.bad { stroke: var(--bad-d); }
+.gauge-text { position: absolute; inset: auto 0 2px 0; text-align: center; display: flex; flex-direction: column; }
+.gauge-text strong { font: 700 3.4rem/1 var(--serif); }
+.gauge-text span { color: #a9c6ca; font-size: .85rem; }
+.verdict {
+  display: table; margin: 16px auto 0; padding: 7px 18px; border-radius: 999px;
+  font-weight: 700; font-size: 1rem; background: rgba(255,255,255,.12);
+}
+.verdict.good { background: rgba(86,219,166,.18); color: var(--good-d); }
+.verdict.mid  { background: rgba(242,189,85,.18); color: var(--mid-d); }
+.verdict.bad  { background: rgba(255,132,120,.18); color: var(--bad-d); }
+.emi { text-align: center; color: #a9c6ca; font-size: .85rem; margin: 10px 0 0; }
+
+.factors-wrap { margin-top: 24px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,.14); }
+h3 { font: 700 1.05rem var(--serif); margin: 0 0 2px; }
+.hint { color: #a9c6ca; font-size: .82rem; margin: 0 0 14px; }
+.factors { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.fl { display: flex; justify-content: space-between; gap: 10px; font-size: .88rem; }
+.fl em { font-style: normal; color: #a9c6ca; }
+.bar { position: relative; height: 8px; background: rgba(255,255,255,.1); border-radius: 4px; margin-top: 5px; }
+.bar::after { content: ""; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 2px; background: rgba(255,255,255,.4); }
+.bar i { position: absolute; top: 0; bottom: 0; border-radius: 4px; transition: width .45s; }
+.bar i.pos { left: 50%; background: var(--good-d); }
+.bar i.neg { right: 50%; background: var(--bad-d); }
+
+/* About */
+.about {
+  max-width: 1080px; margin: 24px auto 0; padding: 26px 28px; background: var(--card); border-radius: 14px;
+  box-shadow: 0 14px 34px -14px rgba(10,47,53,.25); display: grid; grid-template-columns: 1.3fr 1fr; gap: 28px; align-items: center;
+  width: calc(100% - 40px);
+}
+.about p { margin: 8px 0 0; color: var(--muted); max-width: 62ch; font-size: .95rem; }
+.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.stats div { background: #f2f7f8; border-radius: 10px; padding: 12px 14px; }
+.stats strong { display: block; font: 700 1.6rem/1.15 var(--serif); color: var(--brand); }
+.stats span { color: var(--muted); font-size: .82rem; }
+
+@media (max-width: 860px) {
+  .layout, .about { grid-template-columns: 1fr; }
+  .result { position: static; }
+}
+@media (max-width: 520px) {
+  .grid { grid-template-columns: 1fr; }
+  .form-card, .result, .about { padding: 22px 18px; }
+  .hero { padding-bottom: 96px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="hero-inner">
+    <h1>Loan Approval Predictor</h1>
+    <p>Enter an applicant's details. See the chance the loan is approved, and exactly what is pushing it up or down.</p>
+  </div>
+</header>
+
+<main class="layout">
+  <section class="card form-card" aria-labelledby="form-title">
+    <div class="card-head">
+      <h2 id="form-title">Applicant details</h2>
+      <div class="presets">
+        <span>Examples</span>
+        <button type="button" data-preset="strong">Strong</button>
+        <button type="button" data-preset="borderline">Borderline</button>
+        <button type="button" data-preset="weak">Weak</button>
+      </div>
+    </div>
+
+    <fieldset>
+      <legend>Income and debts</legend>
+      <div class="grid">
+        <label>Monthly income
+          <input id="income" type="number" min="1" step="100" value="4500"></label>
+        <label>Existing monthly debt payments
+          <input id="debt" type="number" min="0" step="50" value="400"></label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Loan requested</legend>
+      <div class="grid">
+        <label>Loan amount
+          <input id="loan" type="number" min="1" step="1000" value="60000"></label>
+        <label>Repayment period
+          <select id="term">
+            <option value="12">1 year</option><option value="24">2 years</option>
+            <option value="36">3 years</option><option value="60" selected>5 years</option>
+            <option value="84">7 years</option><option value="120">10 years</option>
+            <option value="180">15 years</option><option value="240">20 years</option>
+          </select></label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Applicant profile</legend>
+      <div class="grid">
+        <label class="wide">
+          <span class="row"><span>Credit score</span><output id="creditOut">690</output></span>
+          <input id="credit" type="range" min="300" max="850" step="1" value="690">
+          <span class="scale"><span>300 poor</span><span>850 excellent</span></span>
+        </label>
+        <label>Years employed
+          <input id="emp" type="number" min="0" max="50" step="1" value="4"></label>
+        <label>Age
+          <input id="age" type="number" min="18" max="80" step="1" value="32"></label>
+        <label>Dependents
+          <input id="dep" type="number" min="0" max="10" step="1" value="1"></label>
+        <label>Education
+          <select id="grad"><option value="1" selected>Graduate degree</option><option value="0">No graduate degree</option></select></label>
+        <label>Owns property
+          <select id="prop"><option value="0" selected>No</option><option value="1">Yes</option></select></label>
+      </div>
+    </fieldset>
+    <p id="error" class="error" role="alert" hidden></p>
+  </section>
+
+  <section class="card result" aria-live="polite" aria-labelledby="result-title">
+    <h2 id="result-title">Prediction</h2>
+    <div class="gauge">
+      <svg viewBox="0 0 200 115" role="img" aria-label="Approval probability gauge">
+        <path class="track" d="M20 100 A80 80 0 0 1 180 100"/>
+        <path id="arc" class="arc" d="M20 100 A80 80 0 0 1 180 100"/>
+      </svg>
+      <div class="gauge-text"><strong id="pct">–</strong><span>chance of approval</span></div>
+    </div>
+    <p id="verdict" class="verdict">–</p>
+    <p id="emi" class="emi"></p>
+
+    <div class="factors-wrap">
+      <h3>What is driving this</h3>
+      <p class="hint">Compared with an average applicant. Green pushes toward approval, red away from it.</p>
+      <ul id="factors" class="factors"></ul>
+    </div>
+  </section>
+</main>
+
+<section class="about">
+  <div class="about-text">
+    <h2>About the model</h2>
+    <p>A logistic regression trained in your browser on <span id="trainSize"></span> synthetic applicants, then tested on <span id="testSize"></span> it had not seen. The data is generated, not real bank data, so use this to learn and demo, not to make real lending decisions.</p>
+  </div>
+  <div class="stats">
+    <div><strong id="acc"></strong><span>accuracy</span></div>
+    <div><strong id="prec"></strong><span>precision</span></div>
+    <div><strong id="rec"></strong><span>recall</span></div>
+    <div><strong id="rate"></strong><span>approved in data</span></div>
+  </div>
+</section>
+
+<script>
+/* Loan approval model: synthetic data + logistic regression trained in the browser. */
+const LoanModel = (() => {
+  const RATE = 0.10; // assumed yearly interest rate used to work out the monthly installment
+  const FEATURES = [
+    { key: 'credit', label: 'Credit score',            fmt: v => Math.round(v) },
+    { key: 'dti',    label: 'Debt-to-income ratio',    fmt: v => (v * 100).toFixed(0) + '%' },
+    { key: 'lti',    label: 'Loan size vs yearly income', fmt: v => v.toFixed(1) + '×' },
+    { key: 'emp',    label: 'Years employed',          fmt: v => v.toFixed(0) + ' yrs' },
+    { key: 'grad',   label: 'Graduate degree',         fmt: v => (v ? 'Yes' : 'No') },
+    { key: 'prop',   label: 'Owns property',           fmt: v => (v ? 'Yes' : 'No') },
+    { key: 'dep',    label: 'Dependents',              fmt: v => v.toFixed(0) },
+    { key: 'age',    label: 'Age',                     fmt: v => v.toFixed(0) }
+  ];
+
+  function emi(loan, months) {
+    const r = RATE / 12;
+    return (loan * r) / (1 - Math.pow(1 + r, -months));
+  }
+
+  // Turns raw form values into the model's feature vector (order matches FEATURES).
+  function toVector(a) {
+    const payment = emi(a.loan, a.term);
+    return [a.credit, (a.debt + payment) / a.income, a.loan / (a.income * 12),
+            Math.min(a.emp, 20), a.grad, a.prop, a.dep, a.age];
+  }
+
+  function seededRandom(seed) {
+    let s = seed >>> 0;
+    return () => {
+      s += 0x6D2B79F5;
+      let t = s;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function makeDataset(n, seed) {
+    const rand = seededRandom(seed);
+    const normal = () => Math.sqrt(-2 * Math.log(rand() + 1e-12)) * Math.cos(2 * Math.PI * rand());
+    const terms = [12, 24, 36, 60, 84, 120, 180, 240];
+    const X = [], y = [];
+    for (let i = 0; i < n; i++) {
+      const income = Math.exp(Math.log(4000) + 0.5 * normal());
+      const age = 21 + Math.floor(rand() * 45);
+      const a = {
+        income,
+        debt: income * rand() * rand() * 0.6,
+        loan: income * 12 * (0.15 + rand() * 4),
+        term: terms[Math.floor(rand() * terms.length)],
+        credit: Math.min(850, Math.max(300, 660 + 90 * normal())),
+        emp: Math.min(age - 20, rand() * 18),
+        grad: rand() < 0.45 ? 1 : 0,
+        prop: rand() < 0.35 ? 1 : 0,
+        dep: Math.floor(rand() * 5),
+        age
+      };
+      const v = toVector(a);
+      // Hidden "bank policy" that generates the labels, plus noise so the data is not perfectly separable.
+      const z = 0.012 * (v[0] - 650) - 6 * (v[1] - 0.40) - 0.7 * (v[2] - 2) + 0.10 * v[3]
+              + 0.5 * v[4] + 0.6 * v[5] - 0.15 * v[6] + 0.02 * (Math.min(v[7], 50) - 30) + 0.5 * normal();
+      X.push(v);
+      y.push(z > 0 ? 1 : 0);
+    }
+    return { X, y };
+  }
+
+  const sigmoid = z => 1 / (1 + Math.exp(-z));
+
+  function train() {
+    const { X, y } = makeDataset(5000, 42);
+    const split = 4000;
+    const Xtr = X.slice(0, split), ytr = y.slice(0, split);
+    const Xte = X.slice(split), yte = y.slice(split);
+    const d = FEATURES.length;
+
+    const mean = Array(d).fill(0), std = Array(d).fill(0);
+    Xtr.forEach(r => r.forEach((v, j) => (mean[j] += v / split)));
+    Xtr.forEach(r => r.forEach((v, j) => (std[j] += (v - mean[j]) ** 2 / split)));
+    for (let j = 0; j < d; j++) std[j] = Math.sqrt(std[j]) || 1;
+    const scale = r => r.map((v, j) => (v - mean[j]) / std[j]);
+
+    const Ztr = Xtr.map(scale);
+    let w = Array(d).fill(0), b = 0;
+    const lr = 0.5, l2 = 0.001;
+    for (let epoch = 0; epoch < 600; epoch++) {
+      const gw = Array(d).fill(0); let gb = 0;
+      for (let i = 0; i < split; i++) {
+        let z = b; for (let j = 0; j < d; j++) z += w[j] * Ztr[i][j];
+        const err = sigmoid(z) - ytr[i];
+        for (let j = 0; j < d; j++) gw[j] += err * Ztr[i][j];
+        gb += err;
+      }
+      for (let j = 0; j < d; j++) w[j] -= lr * (gw[j] / split + l2 * w[j]);
+      b -= lr * gb / split;
+    }
+
+    function predict(vec) {
+      const zs = scale(vec);
+      const contribs = zs.map((v, j) => w[j] * v);
+      const logit = b + contribs.reduce((s, c) => s + c, 0);
+      return { prob: sigmoid(logit), contribs };
+    }
+
+    let tp = 0, tn = 0, fp = 0, fn = 0;
+    Xte.forEach((r, i) => {
+      const pred = predict(r).prob >= 0.5 ? 1 : 0;
+      if (pred && yte[i]) tp++; else if (!pred && !yte[i]) tn++;
+      else if (pred && !yte[i]) fp++; else fn++;
+    });
+    const total = tp + tn + fp + fn;
+    const stats = {
+      trainSize: split, testSize: total,
+      accuracy: (tp + tn) / total,
+      precision: tp / (tp + fp || 1),
+      recall: tp / (tp + fn || 1),
+      approvalRate: y.reduce((s, v) => s + v, 0) / y.length,
+      confusion: { tp, tn, fp, fn }
+    };
+    return { predict, stats };
+  }
+
+  return { FEATURES, emi, toVector, train };
+})();
+
+if (typeof module !== 'undefined') module.exports = LoanModel;
+
+</script>
+<script>
+const { predict, stats } = LoanModel.train();
+const $ = id => document.getElementById(id);
+const ids = ['income', 'debt', 'loan', 'term', 'credit', 'emp', 'age', 'dep', 'grad', 'prop'];
+const ARC_LEN = Math.PI * 80;
+
+const PRESETS = {
+  strong:     { income: 8000, debt: 300,  loan: 40000,  term: 60,  credit: 780, emp: 10, age: 40, dep: 1, grad: 1, prop: 1 },
+  borderline: { income: 4000, debt: 700,  loan: 70000,  term: 84,  credit: 650, emp: 3,  age: 30, dep: 2, grad: 0, prop: 0 },
+  weak:       { income: 2500, debt: 1000, loan: 150000, term: 60,  credit: 520, emp: 1,  age: 24, dep: 3, grad: 0, prop: 0 }
+};
+
+const money = v => Math.round(v).toLocaleString('en-US');
+
+function read() {
+  const o = {};
+  ids.forEach(id => (o[id] = parseFloat($(id).value)));
+  return o;
+}
+
+function validate(a) {
+  if (!(a.income > 0)) return 'Enter a monthly income above 0.';
+  if (!(a.loan > 0)) return 'Enter a loan amount above 0.';
+  if (ids.some(id => Number.isNaN(a[id]))) return 'Fill in every field to see a result.';
+  if (a.debt < 0 || a.emp < 0 || a.dep < 0) return 'Values cannot be negative.';
+  return '';
+}
+
+function update() {
+  $('creditOut').textContent = $('credit').value;
+  const a = read();
+  const problem = validate(a);
+  $('error').hidden = !problem;
+  $('error').textContent = problem;
+  if (problem) return;
+
+  const vec = LoanModel.toVector(a);
+  const { prob, contribs } = predict(vec);
+  const pct = Math.round(prob * 100);
+
+  $('arc').style.strokeDashoffset = ARC_LEN * (1 - prob);
+  $('pct').textContent = pct + '%';
+
+  let verdict, cls;
+  if (prob >= 0.65)      { verdict = 'Likely to be approved'; cls = 'good'; }
+  else if (prob >= 0.40) { verdict = 'Borderline: could go either way'; cls = 'mid'; }
+  else                   { verdict = 'Likely to be declined'; cls = 'bad'; }
+  $('verdict').textContent = verdict;
+  $('verdict').className = 'verdict ' + cls;
+  $('arc').setAttribute('class', 'arc ' + cls);
+
+  $('emi').textContent = 'Estimated installment: ' + money(LoanModel.emi(a.loan, a.term)) +
+    ' per month (at 10% yearly interest)';
+
+  const max = Math.max(...contribs.map(Math.abs), 0.01);
+  const rows = LoanModel.FEATURES.map((f, i) => ({ f, c: contribs[i], v: vec[i] }))
+    .sort((x, y) => Math.abs(y.c) - Math.abs(x.c));
+  $('factors').innerHTML = rows.map(({ f, c, v }) => {
+    const w = (Math.abs(c) / max) * 50;
+    const side = c >= 0 ? 'pos' : 'neg';
+    return `<li><div class="fl"><span>${f.label}</span><em>${f.fmt(v)}</em></div>
+      <div class="bar"><i class="${side}" style="width:${w}%"></i></div></li>`;
+  }).join('');
+}
+
+function applyPreset(name) {
+  const p = PRESETS[name];
+  ids.forEach(id => ($(id).value = p[id]));
+  update();
+}
+
+document.querySelectorAll('[data-preset]').forEach(b =>
+  b.addEventListener('click', () => applyPreset(b.dataset.preset)));
+ids.forEach(id => $(id).addEventListener('input', update));
+
+$('trainSize').textContent = stats.trainSize.toLocaleString('en-US');
+$('testSize').textContent = stats.testSize.toLocaleString('en-US');
+$('acc').textContent = (stats.accuracy * 100).toFixed(1) + '%';
+$('prec').textContent = (stats.precision * 100).toFixed(1) + '%';
+$('rec').textContent = (stats.recall * 100).toFixed(1) + '%';
+$('rate').textContent = (stats.approvalRate * 100).toFixed(0) + '%';
+
+$('arc').style.strokeDasharray = ARC_LEN;
+update();
+
+</script>
+</body>
+</html>
